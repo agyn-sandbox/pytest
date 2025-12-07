@@ -1274,6 +1274,45 @@ def test_pdb_teardown_skipped(
     assert tracked == []
 
 
+@pytest.mark.parametrize(
+    "mark",
+    [
+        '@unittest.skip("skipped for reasons")',
+        '@pytest.mark.skip(reason="skipped for reasons")',
+    ],
+)
+def test_pdb_teardown_skipped_class(
+    pytester: Pytester, monkeypatch: MonkeyPatch, mark: str
+) -> None:
+    tracked: List[str] = []
+    monkeypatch.setattr(
+        pytest, "test_pdb_teardown_skipped_class", tracked, raising=False
+    )
+
+    pytester.makepyfile(
+        """
+        import unittest
+        import pytest
+
+        {mark}
+        class MyTestCase(unittest.TestCase):
+
+            def tearDown(self):
+                pytest.test_pdb_teardown_skipped_class.append(self.id())
+
+            def test_1(self):
+                pass
+
+    """.format(
+            mark=mark
+        )
+    )
+
+    result = pytester.runpytest_inprocess("--pdb")
+    result.stdout.fnmatch_lines("* 1 skipped in *")
+    assert tracked == []
+
+
 def test_async_support(pytester: Pytester) -> None:
     pytest.importorskip("unittest.async_case")
 

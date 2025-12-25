@@ -126,8 +126,7 @@ class TestPaste(object):
         assert len(mocked_urlopen) == 1
         url, data = mocked_urlopen[0]
         assert type(data) is bytes
-        lexer = "python3" if sys.version_info[0] >= 3 else "python"
         assert url == "https://bpaste.net"
-        assert "lexer=%s" % lexer in data.decode()
+        assert "lexer=text" in data.decode()
         assert "code=full-paste-contents" in data.decode()
         assert "expiry=1week" in data.decode()

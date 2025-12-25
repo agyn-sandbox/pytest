@@ -568,19 +568,23 @@ class Package(Module):
         self.fspath = fspath
 
     def setup(self):
+        if not self._should_import_init():
+            return
+
         # not using fixtures to call setup_module here because autouse fixtures
         # from packages are not called automatically (#4085)
+        package_obj = self.obj
         setup_module = _get_first_non_fixture_func(
-            self.obj, ("setUpModule", "setup_module")
+            package_obj, ("setUpModule", "setup_module")
         )
         if setup_module is not None:
-            _call_with_optional_argument(setup_module, self.obj)
+            _call_with_optional_argument(setup_module, package_obj)
 
         teardown_module = _get_first_non_fixture_func(
-            self.obj, ("tearDownModule", "teardown_module")
+            package_obj, ("tearDownModule", "teardown_module")
         )
         if teardown_module is not None:
-            func = partial(_call_with_optional_argument, teardown_module, self.obj)
+            func = partial(_call_with_optional_argument, teardown_module, package_obj)
             self.addfinalizer(func)
 
     def _recurse(self, dirpath):
@@ -639,13 +643,9 @@ class Package(Module):
         return path in self.session._initialpaths
 
     def collect(self):
-        self._mount_obj_if_needed()
         this_path = self.fspath.dirpath()
-        init_module = this_path.join("__init__.py")
-        if init_module.check(file=1) and path_matches_patterns(
-            init_module, self.config.getini("python_files")
-        ):
-            yield Module(init_module, self)
+        if self._should_import_init():
+            yield Module(self.fspath, self)
         pkg_prefixes = set()
         for path in this_path.visit(rec=self._recurse, bf=True, sort=True):
             # We will visit our own __init__.py file, in which case we skip it.
@@ -668,6 +668,15 @@ class Package(Module):
                 continue
             elif path.join("__init__.py").check(file=1):
                 pkg_prefixes.add(path)
+
+    def _should_import_init(self):
+        init_module = self.fspath
+        if not init_module.check(file=1):
+            return False
+        if self.isinitpath(init_module):
+            return True
+        python_files = self.config.getini("python_files")
+        return path_matches_patterns(init_module, python_files)
 
 
 def _call_with_optional_argument(func, arg):

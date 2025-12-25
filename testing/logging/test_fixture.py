@@ -151,6 +151,49 @@ def test_clear(caplog):
     assert not caplog.text
 
 
+def test_clear_keeps_call_records_in_sync(caplog):
+    caplog.set_level(logging.INFO)
+    call_records = caplog.get_records("call")
+    assert call_records is caplog.records
+
+    logger.info("call before clear")
+    assert [record.message for record in call_records] == ["call before clear"]
+    assert [record.message for record in caplog.records] == ["call before clear"]
+
+    caplog.clear()
+
+    assert call_records is caplog.records
+    assert call_records == []
+    assert caplog.get_records("call") is caplog.records
+
+    logger.info("call after clear")
+    assert [record.message for record in call_records] == ["call after clear"]
+    assert [record.message for record in caplog.get_records("call")] == [
+        "call after clear"
+    ]
+
+
+def test_clear_preserves_other_phases(caplog, logging_during_setup_and_teardown):
+    assert [record.message for record in caplog.get_records("setup")] == ["a_setup_log"]
+    assert caplog.get_records("teardown") == []
+
+    logger.info("call message before clear")
+    assert [record.message for record in caplog.get_records("call")] == [
+        "call message before clear"
+    ]
+
+    caplog.clear()
+
+    assert [record.message for record in caplog.get_records("setup")] == ["a_setup_log"]
+    assert caplog.get_records("call") == []
+    assert caplog.get_records("teardown") == []
+
+    logger.info("call message after clear")
+    assert [record.message for record in caplog.get_records("call")] == [
+        "call message after clear"
+    ]
+
+
 @pytest.fixture
 def logging_during_setup_and_teardown(caplog):
     caplog.set_level("INFO")

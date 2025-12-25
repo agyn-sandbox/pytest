@@ -16,6 +16,7 @@ import types
 from pathlib import Path
 from pathlib import PurePath
 from typing import Callable
+from typing import cast
 from typing import Dict
 from typing import IO
 from typing import Iterable
@@ -281,7 +282,10 @@ class AssertionRewritingHook(importlib.abc.MetaPathFinder, importlib.abc.Loader)
             else:
                 from importlib.resources.readers import FileReader
 
-            return FileReader(types.SimpleNamespace(path=self._rewritten_names[name]))
+            return cast(
+                importlib.abc.TraversableResources,
+                FileReader(types.SimpleNamespace(path=self._rewritten_names[name])),
+            )
 
 
 def _write_pyc_fp(

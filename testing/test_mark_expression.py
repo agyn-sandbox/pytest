@@ -128,8 +128,6 @@ def test_syntax_errors(expr: str, column: int, message: str) -> None:
         "not[and]or",
         "1234+5678",
         "123.232",
-        "True",
-        "False",
         "if",
         "else",
         "while",
@@ -137,6 +135,17 @@ def test_syntax_errors(expr: str, column: int, message: str) -> None:
 )
 def test_valid_idents(ident: str) -> None:
     assert evaluate(ident, {ident: True}.__getitem__)
+
+
+@pytest.mark.parametrize(
+    ("expr", "expected"),
+    (("True", True), ("False", False), ("None", None)),
+)
+def test_literal_idents(expr: str, expected: object) -> None:
+    def _unexpected_lookup(ident: str) -> bool:
+        pytest.fail("unexpected lookup for {!r}".format(ident))
+
+    assert evaluate(expr, _unexpected_lookup) is expected
 
 
 @pytest.mark.parametrize(

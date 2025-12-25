@@ -27,7 +27,7 @@ from typing import Sequence
 
 import attr
 
-from _pytest.compat import TYPE_CHECKING
+from _pytest.compat import TYPE_CHECKING, _ident_to_name
 
 if TYPE_CHECKING:
     from typing import NoReturn
@@ -129,7 +129,7 @@ class Scanner:
 
 def expression(s: Scanner) -> ast.Expression:
     if s.accept(TokenType.EOF):
-        ret = ast.NameConstant(False)  # type: ast.expr
+        ret = _ident_to_name("False")
     else:
         ret = expr(s)
         s.accept(TokenType.EOF, reject=True)
@@ -161,7 +161,7 @@ def not_expr(s: Scanner) -> ast.expr:
         return ret
     ident = s.accept(TokenType.IDENT)
     if ident:
-        return ast.Name(ident.value, ast.Load())
+        return _ident_to_name(ident.value)
     s.reject((TokenType.NOT, TokenType.LPAREN, TokenType.IDENT))
 
 

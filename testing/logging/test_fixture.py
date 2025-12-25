@@ -236,6 +236,66 @@ def test_caplog_captures_despite_exception(testdir):
     assert result.ret == 1
 
 
+def test_caplog_handler_level_restored_between_tests(testdir):
+    testdir.makepyfile(
+        """
+        import logging
+
+        def test_sets_custom_level(caplog):
+            caplog.set_level(42)
+            assert caplog.handler.level == 42
+
+        def test_handler_level_restored(caplog):
+            assert caplog.handler.level == logging.NOTSET
+        """
+    )
+
+    result = testdir.runpytest()
+    result.assert_outcomes(passed=2)
+
+
+def test_caplog_logger_specific_override_restores_handler_level(testdir):
+    testdir.makepyfile(
+        """
+        import logging
+
+        def test_override_specific_logger(caplog):
+            logger = logging.getLogger('example')
+            caplog.set_level(logging.WARNING, logger=logger.name)
+            logger.warning('message')
+            assert caplog.handler.level == logging.WARNING
+            assert [record.levelno for record in caplog.records] == [logging.WARNING]
+
+        def test_handler_level_after_logger_override(caplog):
+            assert caplog.handler.level == logging.NOTSET
+        """
+    )
+
+    result = testdir.runpytest()
+    result.assert_outcomes(passed=2)
+
+
+def test_caplog_nested_set_level_restores_handler(testdir):
+    testdir.makepyfile(
+        """
+        import logging
+
+        def test_nested_set_level(caplog):
+            caplog.set_level(logging.INFO)
+            caplog.set_level(logging.DEBUG)
+            with caplog.at_level(logging.WARNING):
+                logging.getLogger().warning('inside')
+            assert caplog.handler.level == logging.DEBUG
+
+        def test_handler_level_after_nested_set_level(caplog):
+            assert caplog.handler.level == logging.NOTSET
+        """
+    )
+
+    result = testdir.runpytest()
+    result.assert_outcomes(passed=2)
+
+
 def test_log_report_captures_according_to_config_option_upon_failure(testdir):
     """ Test that upon failure:
     (1) `caplog` succeeded to capture the DEBUG message and assert on it => No `Exception` is raised

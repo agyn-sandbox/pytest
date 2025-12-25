@@ -673,6 +673,8 @@ class LoggingPlugin:
 
     def _runtest_for(self, item: nodes.Item, when: str) -> Generator[None, None, None]:
         """Implements the internals of pytest_runtest_xxx() hook."""
+        if self.log_level is None:
+            self.caplog_handler.setLevel(logging.NOTSET)
         with catching_logs(
             self.caplog_handler, level=self.log_level,
         ) as caplog_handler, catching_logs(

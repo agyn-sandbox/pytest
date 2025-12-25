@@ -1,6 +1,7 @@
 """
 python version compatibility code
 """
+import ast
 import enum
 import functools
 import inspect
@@ -33,7 +34,7 @@ else:
 
 
 if TYPE_CHECKING:
-    from typing import Type
+    from typing import Type  # noqa: F401 (used in type string)
     from typing_extensions import Final
 
 
@@ -58,6 +59,22 @@ if sys.version_info >= (3, 8):
     from importlib import metadata as importlib_metadata
 else:
     import importlib_metadata  # noqa: F401
+
+
+_LITERAL_IDENTS = {
+    "True": True,
+    "False": False,
+    "None": None,
+}
+
+
+def _ident_to_name(name: str) -> ast.expr:
+    if name in _LITERAL_IDENTS:
+        literal = _LITERAL_IDENTS[name]
+        if sys.version_info >= (3, 8):
+            return ast.Constant(value=literal)
+        return ast.NameConstant(value=literal)
+    return ast.Name(id=name, ctx=ast.Load())
 
 
 def _format_args(func: Callable[..., Any]) -> str:

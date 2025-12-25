@@ -239,20 +239,24 @@ def pytest_runtest_setup(item: Item) -> None:
         skip(skipped.reason)
 
     if not item.config.option.runxfail:
-        item._store[xfailed_key] = xfailed = evaluate_xfail_marks(item)
-        if xfailed and not xfailed.run:
-            xfail("[NOTRUN] " + xfailed.reason)
+        xfailed = evaluate_xfail_marks(item)
+        if xfailed:
+            item._store[xfailed_key] = xfailed
+            if not xfailed.run:
+                xfail("[NOTRUN] " + xfailed.reason)
+        else:
+            try:
+                del item._store[xfailed_key]
+            except KeyError:
+                pass
 
 
 @hookimpl(hookwrapper=True)
 def pytest_runtest_call(item: Item) -> Generator[None, None, None]:
     xfailed = item._store.get(xfailed_key, None)
-    if xfailed is None:
-        item._store[xfailed_key] = xfailed = evaluate_xfail_marks(item)
 
-    if not item.config.option.runxfail:
-        if xfailed and not xfailed.run:
-            xfail("[NOTRUN] " + xfailed.reason)
+    if not item.config.option.runxfail and xfailed and not xfailed.run:
+        xfail("[NOTRUN] " + xfailed.reason)
 
     yield
 
@@ -262,6 +266,10 @@ def pytest_runtest_makereport(item: Item, call: CallInfo[None]):
     outcome = yield
     rep = outcome.get_result()
     xfailed = item._store.get(xfailed_key, None)
+    if not item.config.option.runxfail and call.when == "call" and xfailed is None:
+        xfailed = evaluate_xfail_marks(item)
+        if xfailed:
+            item._store[xfailed_key] = xfailed
     # unittest special case, see setting of unexpectedsuccess_key
     if unexpectedsuccess_key in item._store and rep.when == "call":
         reason = item._store[unexpectedsuccess_key]
@@ -291,6 +299,20 @@ def pytest_runtest_makereport(item: Item, call: CallInfo[None]):
             else:
                 rep.outcome = "passed"
                 rep.wasxfail = xfailed.reason
+
+    if (
+        not item.config.option.runxfail
+        and call.when == "call"
+        and xfailed
+        and not xfailed.run
+        and not getattr(rep, "wasxfail", None)
+    ):
+        notrun_reason = "[NOTRUN]"
+        if xfailed.reason:
+            notrun_reason += " " + xfailed.reason
+        rep.wasxfail = "reason: " + notrun_reason
+        if not rep.skipped:
+            rep.outcome = "skipped"
 
     if (
         item._store.get(skipped_by_mark_key, True)

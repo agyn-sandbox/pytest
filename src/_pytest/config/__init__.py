@@ -432,30 +432,31 @@ class PytestPluginManager(PluginManager):
         raise KeyError(name)
 
     def _importconftest(self, conftestpath):
-        # Use realpath to avoid loading the same conftest twice
-        # with build systems that create build directories containing
-        # symlinks to actual files.
-        conftestpath = unique_path(conftestpath)
+        # Use a normcased path for cache keys while keeping the
+        # case-preserving real path for import operations so we
+        # avoid duplicate loads but still respect filesystem casing.
+        conftestpath_key = unique_path(conftestpath)
+        real_conftestpath = conftestpath.realpath()
         try:
-            return self._conftestpath2mod[conftestpath]
+            return self._conftestpath2mod[conftestpath_key]
         except KeyError:
-            pkgpath = conftestpath.pypkgpath()
+            pkgpath = real_conftestpath.pypkgpath()
             if pkgpath is None:
-                _ensure_removed_sysmodule(conftestpath.purebasename)
+                _ensure_removed_sysmodule(real_conftestpath.purebasename)
             try:
-                mod = conftestpath.pyimport()
+                mod = real_conftestpath.pyimport()
                 if (
                     hasattr(mod, "pytest_plugins")
                     and self._configured
                     and not self._using_pyargs
                 ):
-                    _fail_on_non_top_pytest_plugins(conftestpath, self._confcutdir)
+                    _fail_on_non_top_pytest_plugins(real_conftestpath, self._confcutdir)
             except Exception:
-                raise ConftestImportFailure(conftestpath, sys.exc_info())
+                raise ConftestImportFailure(real_conftestpath, sys.exc_info())
 
             self._conftest_plugins.add(mod)
-            self._conftestpath2mod[conftestpath] = mod
-            dirpath = conftestpath.dirpath()
+            self._conftestpath2mod[conftestpath_key] = mod
+            dirpath = conftestpath_key.dirpath()
             if dirpath in self._dirpath2confmods:
                 for path, mods in self._dirpath2confmods.items():
                     if path and path.relto(dirpath) or path == dirpath:

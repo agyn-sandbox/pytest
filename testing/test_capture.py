@@ -1212,6 +1212,11 @@ class TestStdCaptureFD(TestStdCapture):
         """
         )
 
+    def test_stdout_mode(self):
+        with self.getcapture():
+            assert "b" in sys.stdout.buffer.mode
+            assert "b" not in sys.stdout.mode
+
     def test_intermingling(self):
         with self.getcapture() as cap:
             os.write(1, b"1")

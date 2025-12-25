@@ -4,6 +4,7 @@ import warnings
 from typing import Any
 from typing import Callable
 from typing import Collection
+from typing import Dict
 from typing import Iterable
 from typing import Iterator
 from typing import List
@@ -361,6 +362,77 @@ def get_unpacked_marks(obj: object) -> Iterable[Mark]:
     if not isinstance(mark_list, list):
         mark_list = [mark_list]
     return normalize_mark_list(mark_list)
+
+
+def get_unpacked_class_marks(cls: type) -> List[Mark]:
+    """Return all unique marks declared on a class following its MRO."""
+
+    def _freeze(value: Any) -> Any:
+        if isinstance(value, (list, tuple)):
+            return tuple(_freeze(v) for v in value)
+        if isinstance(value, set):
+            return tuple(sorted(_freeze(v) for v in value))
+        if isinstance(value, dict):
+            return tuple(sorted((k, _freeze(v)) for k, v in value.items()))
+        return value
+
+    def _mark_key(
+        mark: Mark,
+    ) -> Tuple[str, Tuple[Any, ...], Tuple[Tuple[str, Any], ...]]:
+        return (
+            mark.name,
+            _freeze(mark.args),
+            tuple(
+                sorted((name, _freeze(value)) for name, value in mark.kwargs.items())
+            ),
+        )
+
+    def _marks_for(klass: type, cache: Dict[type, List[Mark]]) -> List[Mark]:
+        cached = cache.get(klass)
+        if cached is not None:
+            return cached
+        raw = klass.__dict__.get("pytestmark", [])
+        if not isinstance(raw, list):
+            raw = [raw]
+        marks = list(normalize_mark_list(raw))
+        cache[klass] = marks
+        return marks
+
+    dedup_key: Set[Tuple[str, Tuple[Any, ...], Tuple[Tuple[str, Any], ...]]] = set()
+    collected: List[Mark] = []
+    marks_cache: Dict[type, List[Mark]] = {}
+
+    for base in cls.__mro__:
+        if base is object:
+            break
+
+        marks = list(_marks_for(base, marks_cache))
+        if marks:
+            inherited_keys = {
+                _mark_key(mark)
+                for ancestor in base.__mro__[1:]
+                if ancestor is not object
+                for mark in _marks_for(ancestor, marks_cache)
+            }
+            if inherited_keys:
+                trimmed: List[Mark] = []
+                prefix_skipping = True
+                for mark in marks:
+                    key = _mark_key(mark)
+                    if prefix_skipping and key in inherited_keys:
+                        continue
+                    prefix_skipping = False
+                    trimmed.append(mark)
+                marks = trimmed
+
+        for mark in marks:
+            key = _mark_key(mark)
+            if key in dedup_key:
+                continue
+            dedup_key.add(key)
+            collected.append(mark)
+
+    return collected
 
 
 def normalize_mark_list(

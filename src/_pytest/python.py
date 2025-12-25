@@ -63,6 +63,7 @@ from _pytest.fixtures import FuncFixtureInfo
 from _pytest.main import Session
 from _pytest.mark import MARK_GEN
 from _pytest.mark import ParameterSet
+from _pytest.mark.structures import get_unpacked_class_marks
 from _pytest.mark.structures import get_unpacked_marks
 from _pytest.mark.structures import Mark
 from _pytest.mark.structures import MarkDecorator
@@ -311,7 +312,10 @@ class PyobjMixin(nodes.Node):
             # XXX evil hack
             # used to avoid Function marker duplication
             if self._ALLOW_MARKERS:
-                self.own_markers.extend(get_unpacked_marks(self.obj))
+                if isinstance(self, Class):
+                    self.own_markers.extend(get_unpacked_class_marks(obj))
+                else:
+                    self.own_markers.extend(get_unpacked_marks(obj))
                 # This assumes that `obj` is called before there is a chance
                 # to add custom keys to `self.keywords`, so no fear of overriding.
                 self.keywords.update((mark.name, mark) for mark in self.own_markers)

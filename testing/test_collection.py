@@ -1187,7 +1187,7 @@ def test_collect_pkg_init_and_file_in_args(testdir):
     result = testdir.runpytest("-v", str(init), str(p))
     result.stdout.fnmatch_lines(
         [
-            "sub/test_file.py::test_file PASSED*",
+            "sub/__init__.py::test_init PASSED*",
             "sub/test_file.py::test_file PASSED*",
             "*2 passed in*",
         ]
@@ -1209,7 +1209,7 @@ def test_collect_pkg_init_only(testdir):
     init.write("def test_init(): pass")
 
     result = testdir.runpytest(str(init))
-    result.stdout.fnmatch_lines(["*no tests ran in*"])
+    result.stdout.fnmatch_lines(["*1 passed in*"])
 
     result = testdir.runpytest("-v", "-o", "python_files=*.py", str(init))
     result.stdout.fnmatch_lines(["sub/__init__.py::test_init PASSED*", "*1 passed in*"])

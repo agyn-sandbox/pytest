@@ -1336,3 +1336,55 @@ def test_package_ordering(testdir):
     # Execute from .
     result = testdir.runpytest("-v", "-s")
     result.assert_outcomes(passed=3)
+
+
+def test_package_init_not_imported_when_not_a_test_module(testdir):
+    testdir.makepyfile(
+        **{
+            "pkg/__init__.py": 'assert False, "should not be imported"\n',
+            "tests/test_mod.py": "def test_ok():\n    pass\n",
+        }
+    )
+
+    result = testdir.runpytest()
+    result.assert_outcomes(passed=1)
+    assert "should not be imported" not in result.stdout.str()
+
+
+def test_package_init_collected_when_enabled_via_python_files(testdir):
+    testdir.makeini(
+        """
+        [pytest]
+        python_files = *.py
+    """
+    )
+    testdir.makepyfile(
+        **{
+            "pkg/__init__.py": "def test_from_init():\n    assert True\n",
+        }
+    )
+
+    result = testdir.runpytest("-k", "test_from_init")
+    result.assert_outcomes(passed=1)
+
+
+def test_src_layout_package_init_not_imported(testdir):
+    testdir.makepyfile(
+        **{
+            "src/pkg/__init__.py": 'assert False, "should not be imported"\n',
+            "tests/test_ok.py": "def test_ok():\n    pass\n",
+        }
+    )
+
+    result = testdir.runpytest()
+    result.assert_outcomes(passed=1)
+    assert "should not be imported" not in result.stdout.str()
+
+
+def test_namespace_package_without_init_collects_normally(testdir):
+    testdir.makepyfile(
+        **{"ns_pkg/test_mod.py": "def test_namespace():\n    pass\n"}
+    )
+
+    result = testdir.runpytest()
+    result.assert_outcomes(passed=1)

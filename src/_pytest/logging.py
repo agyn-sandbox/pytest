@@ -440,7 +440,13 @@ class LogCaptureFixture:
 
     def clear(self) -> None:
         """Reset the list of log records and the captured log text."""
-        self.handler.reset()
+        self.handler.records.clear()
+        stream = self.handler.stream
+        try:
+            stream.seek(0)
+            stream.truncate(0)
+        except (AttributeError, ValueError, OSError):
+            self.handler.stream = StringIO()
 
     def set_level(self, level: Union[int, str], logger: Optional[str] = None) -> None:
         """Set the level of a logger for the duration of a test.

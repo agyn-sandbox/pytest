@@ -449,7 +449,17 @@ class EncodedFile(object):
 
     @property
     def mode(self):
-        return self.buffer.mode.replace("b", "")
+        """
+        Present a text-like mode to callers.
+
+        The underlying buffer is opened in binary mode (e.g., 'rb+', 'wb+')
+        during fd-level capturing. Some libraries (e.g., youtube-dl) inspect
+        file.mode to decide whether to write bytes or text. Since EncodedFile
+        expects text on Python 3, report a mode without the binary flag.
+        """
+        m = getattr(self.buffer, "mode", "")
+        return m.replace("b", "")
+
 
     def __getattr__(self, name):
         return getattr(object.__getattribute__(self, "buffer"), name)

@@ -1194,6 +1194,14 @@ class TestStdCaptureFD(TestStdCapture):
     pytestmark = needsosdup
     captureclass = staticmethod(StdCaptureFD)
 
+    def test_stdout_mode(self):
+        with self.getcapture():
+            assert hasattr(sys.stdout, "buffer")
+            # underlying buffer is binary
+            assert "b" in sys.stdout.buffer.mode
+            # EncodedFile.mode should not include "b"
+            assert "b" not in sys.stdout.mode
+
     def test_simple_only_fd(self, testdir):
         testdir.makepyfile(
             """

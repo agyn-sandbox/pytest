@@ -296,6 +296,37 @@ def test_caplog_nested_set_level_restores_handler(testdir):
     result.assert_outcomes(passed=2)
 
 
+def test_caplog_fixture_setup_level_reaches_test_body(testdir):
+    testdir.makepyfile(
+        """
+        import logging
+        import pytest
+
+
+        @pytest.fixture
+        def info_level(caplog):
+            caplog.set_level(logging.INFO)
+
+
+        def test_uses_fixture_level(caplog, info_level):
+            logger = logging.getLogger()
+            logger.debug('hidden debug message')
+            logger.info('visible info message')
+            assert caplog.handler.level == logging.INFO
+            assert [record.levelno for record in caplog.records] == [logging.INFO]
+            assert 'hidden debug message' not in caplog.text
+            assert 'visible info message' in caplog.text
+
+
+        def test_handler_level_restored_after_fixture(caplog):
+            assert caplog.handler.level == logging.NOTSET
+        """
+    )
+
+    result = testdir.runpytest()
+    result.assert_outcomes(passed=2)
+
+
 def test_log_report_captures_according_to_config_option_upon_failure(testdir):
     """ Test that upon failure:
     (1) `caplog` succeeded to capture the DEBUG message and assert on it => No `Exception` is raised

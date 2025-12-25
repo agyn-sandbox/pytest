@@ -619,6 +619,21 @@ class TestSkip:
         result = testdir.runpytest("-rs")
         result.stdout.fnmatch_lines(["*for lolz*", "*1 skipped*"])
 
+    def test_skip_reports_item_location_with_runxfail(self, testdir):
+        testdir.makepyfile(
+            test_skip="""
+            import pytest
+
+            @pytest.mark.skip(reason="skip me")
+            def test_skip():
+                pass
+        """
+        )
+        result = testdir.runpytest("-q", "-rs", "--runxfail")
+        result.stdout.fnmatch_lines(["*test_skip.py:*: skip me*"])
+        result.stdout.no_fnmatch_line("*src/_pytest/skipping.py*")
+        assert result.ret == 0
+
     def test_only_skips_marked_test(self, testdir):
         testdir.makepyfile(
             """
@@ -677,6 +692,21 @@ class TestSkipif:
         )
         result = testdir.runpytest(p, "-s", "-rs")
         result.stdout.fnmatch_lines(["*SKIP*1*test_foo.py*platform*", "*1 skipped*"])
+        assert result.ret == 0
+
+    def test_skipif_reports_item_location_with_runxfail(self, testdir):
+        testdir.makepyfile(
+            test_skipif="""
+            import pytest
+
+            @pytest.mark.skipif(True, reason="conditional skip")
+            def test_skipif():
+                pass
+        """
+        )
+        result = testdir.runpytest("-q", "-rs", "--runxfail")
+        result.stdout.fnmatch_lines(["*test_skipif.py:*: conditional skip*"])
+        result.stdout.no_fnmatch_line("*src/_pytest/skipping.py*")
         assert result.ret == 0
 
     def test_skipif_using_platform(self, testdir):

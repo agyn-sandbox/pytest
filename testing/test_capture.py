@@ -1220,6 +1220,11 @@ class TestStdCaptureFD(TestStdCapture):
         """
         )
 
+    def test_intermingling(self):
+        with self.getcapture() as cap:
+            os.write(1, b"1")
+            sys.stdout.write(str(2))
+            sys.stdout.flush()
             os.write(1, b"3")
             os.write(2, b"a")
             sys.stderr.write("b")

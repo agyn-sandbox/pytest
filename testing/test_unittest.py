@@ -1193,6 +1193,62 @@ def test_pdb_teardown_called(testdir, monkeypatch):
     ]
 
 
+def test_unittest_skip_method_does_not_call_teardown_with_pdb(testdir):
+    testdir.makepyfile(
+        """
+        import unittest
+
+        class MyTestCase(unittest.TestCase):
+            @unittest.skip("skip method")
+            def test_skipped(self):
+                pass
+
+            def tearDown(self):
+                raise AssertionError("tearDown should not be called")
+    """
+    )
+    result = testdir.runpytest_inprocess("--pdb")
+    result.assert_outcomes(skipped=1)
+
+
+def test_unittest_setUp_raises_SkipTest_does_not_call_teardown_with_pdb(testdir):
+    testdir.makepyfile(
+        """
+        import unittest
+
+        class MyTestCase(unittest.TestCase):
+            def setUp(self):
+                raise unittest.SkipTest("skip in setup")
+
+            def tearDown(self):
+                raise AssertionError("tearDown should not be called")
+
+            def test_something(self):
+                pass
+    """
+    )
+    result = testdir.runpytest_inprocess("--pdb")
+    result.assert_outcomes(skipped=1)
+
+
+def test_unittest_class_skip_does_not_call_teardown_with_pdb(testdir):
+    testdir.makepyfile(
+        """
+        import unittest
+
+        @unittest.skip("skip class")
+        class MyTestCase(unittest.TestCase):
+            def tearDown(self):
+                raise AssertionError("tearDown should not be called")
+
+            def test_something(self):
+                pass
+    """
+    )
+    result = testdir.runpytest_inprocess("--pdb")
+    result.assert_outcomes(skipped=1)
+
+
 def test_async_support(testdir):
     pytest.importorskip("unittest.async_case")
 

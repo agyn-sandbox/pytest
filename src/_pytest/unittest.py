@@ -122,7 +122,8 @@ class TestCaseFunction(Function):
 
     def teardown(self):
         if self._explicit_tearDown is not None:
-            self._explicit_tearDown()
+            if not self._store.get(skipped_by_mark_key, False):
+                self._explicit_tearDown()
             self._explicit_tearDown = None
         self._testcase = None
         self._obj = None

@@ -159,6 +159,46 @@ def test_parametrize_marks_merge_and_dedupe(pytester: pytest.Pytester) -> None:
     result.assert_outcomes(passed=4)
 
 
+def test_parametrize_marks_with_param_objects(pytester: pytest.Pytester) -> None:
+    _register_marks(pytester)
+    pytester.makepyfile(
+        """
+        import pytest
+
+        class ParamBaseA:
+            pytestmark = pytest.mark.parametrize(
+                "left",
+                [
+                    pytest.param("L1", marks=pytest.mark.shared("dup")),
+                    pytest.param("L2", marks=pytest.mark.alpha("left")),
+                ],
+            )
+
+        class ParamBaseB:
+            pytestmark = [
+                pytest.mark.parametrize(
+                    "right",
+                    [
+                        pytest.param("R1", marks=pytest.mark.shared("dup")),
+                        pytest.param("R2", marks=pytest.mark.beta("right")),
+                    ],
+                )
+            ]
+
+        class TestParamCombined(ParamBaseA, ParamBaseB):
+            def test_params(self, left, right, request):
+                shared_args = {mark.args for mark in request.node.iter_markers(name="shared")}
+                if left == "L1" or right == "R1":
+                    assert shared_args == {("dup",)}
+                else:
+                    assert shared_args == set()
+        """
+    )
+
+    result = pytester.runpytest()
+    result.assert_outcomes(passed=4)
+
+
 def test_class_pytestmark_forms_supported(pytester: pytest.Pytester) -> None:
     _register_marks(pytester)
     pytester.makepyfile(

@@ -367,7 +367,22 @@ def get_unpacked_marks(obj: object) -> Iterable[Mark]:
 def get_unpacked_class_marks(cls: type) -> List[Mark]:
     """Return all unique marks declared on a class following its MRO."""
 
+    def _mark_components(
+        mark: Mark,
+    ) -> Tuple[str, Tuple[Any, ...], Tuple[Tuple[str, Any], ...]]:
+        return (
+            mark.name,
+            tuple(_freeze(arg) for arg in mark.args),
+            tuple(
+                sorted((name, _freeze(value)) for name, value in mark.kwargs.items())
+            ),
+        )
+
     def _freeze(value: Any) -> Any:
+        if isinstance(value, MarkDecorator):
+            return ("MarkDecorator", *_mark_components(value.mark))
+        if isinstance(value, Mark):
+            return ("Mark", *_mark_components(value))
         if isinstance(value, (list, tuple)):
             return tuple(_freeze(v) for v in value)
         if isinstance(value, set):
@@ -379,13 +394,7 @@ def get_unpacked_class_marks(cls: type) -> List[Mark]:
     def _mark_key(
         mark: Mark,
     ) -> Tuple[str, Tuple[Any, ...], Tuple[Tuple[str, Any], ...]]:
-        return (
-            mark.name,
-            _freeze(mark.args),
-            tuple(
-                sorted((name, _freeze(value)) for name, value in mark.kwargs.items())
-            ),
-        )
+        return _mark_components(mark)
 
     def _marks_for(klass: type, cache: Dict[type, List[Mark]]) -> List[Mark]:
         cached = cache.get(klass)

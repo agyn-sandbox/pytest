@@ -1,5 +1,6 @@
 import atexit
 import contextlib
+import errno
 import fnmatch
 import importlib.util
 import itertools
@@ -549,17 +550,40 @@ def resolve_package_path(path: Path) -> Optional[Path]:
 
 
 def visit(
-    path: str, recurse: Callable[["os.DirEntry[str]"], bool]
+    path: str,
+    recurse: Callable[["os.DirEntry[str]"], bool],
+    *,
+    _seen: Optional[Set[str]] = None,
 ) -> Iterator["os.DirEntry[str]"]:
     """Walk a directory recursively, in breadth-first order.
 
     Entries at each directory level are sorted.
     """
+    if _seen is None:
+        _seen = set()
+
+    real_path = os.path.realpath(path)
+    if real_path in _seen:
+        return
+    _seen.add(real_path)
+
     entries = sorted(os.scandir(path), key=lambda entry: entry.name)
     yield from entries
     for entry in entries:
-        if entry.is_dir(follow_symlinks=False) and recurse(entry):
-            yield from visit(entry.path, recurse)
+        try:
+            is_directory = entry.is_dir(follow_symlinks=True)
+        except OSError as exc:
+            if exc.errno in (
+                errno.ENOENT,
+                errno.ENOTDIR,
+                errno.ELOOP,
+                errno.EACCES,
+                errno.EPERM,
+            ):
+                continue
+            raise
+        if is_directory and recurse(entry):
+            yield from visit(entry.path, recurse, _seen=_seen)
 
 
 def absolutepath(path: Union[Path, str]) -> Path:

@@ -1256,6 +1256,32 @@ def test_collect_sub_with_symlinks(use_pkg, testdir):
     )
 
 
+def test_collect_symlinked_directory_argument(testdir):
+    target = testdir.mkdir("real_dir")
+    target.join("test_linked.py").write("def test_linked(): pass")
+
+    link = testdir.tmpdir.join("link_dir")
+    symlink_or_skip(target, link, target_is_directory=True)
+
+    result = testdir.runpytest("-v", str(link))
+    result.stdout.fnmatch_lines(
+        ("link_dir/test_linked.py::test_linked PASSED*", "*1 passed in*",)
+    )
+
+
+def test_collect_symlinked_subdirectory(testdir):
+    target = testdir.mkdir("real_pkg")
+    target.join("test_inside.py").write("def test_inside(): pass")
+
+    root = testdir.mkdir("root")
+    symlink_or_skip(target, root.join("link_pkg"), target_is_directory=True)
+
+    result = testdir.runpytest("-v", str(root))
+    result.stdout.fnmatch_lines(
+        ("root/link_pkg/test_inside.py::test_inside PASSED*", "*1 passed in*",)
+    )
+
+
 def test_collector_respects_tbstyle(testdir):
     p1 = testdir.makepyfile("assert 0")
     result = testdir.runpytest(p1, "--tb=native")

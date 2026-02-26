@@ -292,3 +292,25 @@ def test_setup_show_with_KeyboardInterrupt_in_test(testdir):
         ]
     )
     assert result.ret == ExitCode.INTERRUPTED
+
+
+def test_setup_show_parametrize_bytes(testdir):
+    p = testdir.makepyfile(
+        """
+        import pytest
+
+        @pytest.mark.parametrize('data', [b'Hello World'])
+        def test_data(data):
+            pass
+    """
+    )
+
+    result = testdir.runpytest("--setup-show", p)
+    result.stdout.fnmatch_lines(
+        [
+            "*SETUP    F data*[b'Hello World']*",
+            "*test_data[data0]*",
+            "*TEARDOWN F data*[b'Hello World']*",
+            "*= 1 passed in *",
+        ]
+    )

@@ -239,7 +239,9 @@ def pytest_runtest_setup(item: Item) -> None:
         skip(skipped.reason)
 
     if not item.config.option.runxfail:
-        item._store[xfailed_key] = xfailed = evaluate_xfail_marks(item)
+        xfailed = evaluate_xfail_marks(item)
+        if xfailed is not None:
+            item._store[xfailed_key] = xfailed
         if xfailed and not xfailed.run:
             xfail("[NOTRUN] " + xfailed.reason)
 
@@ -247,8 +249,10 @@ def pytest_runtest_setup(item: Item) -> None:
 @hookimpl(hookwrapper=True)
 def pytest_runtest_call(item: Item) -> Generator[None, None, None]:
     xfailed = item._store.get(xfailed_key, None)
-    if xfailed is None:
-        item._store[xfailed_key] = xfailed = evaluate_xfail_marks(item)
+    if xfailed is None and not item.config.option.runxfail:
+        xfailed = evaluate_xfail_marks(item)
+        if xfailed and not xfailed.run:
+            item._store[xfailed_key] = xfailed
 
     if not item.config.option.runxfail:
         if xfailed and not xfailed.run:
@@ -262,6 +266,8 @@ def pytest_runtest_makereport(item: Item, call: CallInfo[None]):
     outcome = yield
     rep = outcome.get_result()
     xfailed = item._store.get(xfailed_key, None)
+    if xfailed is None and call.when == "call" and not item.config.option.runxfail:
+        xfailed = evaluate_xfail_marks(item)
     # unittest special case, see setting of unexpectedsuccess_key
     if unexpectedsuccess_key in item._store and rep.when == "call":
         reason = item._store[unexpectedsuccess_key]
